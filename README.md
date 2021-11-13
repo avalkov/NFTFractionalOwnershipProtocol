@@ -15,6 +15,9 @@ Fractionalize already deposited NFT.
 ### **sell**
 Publish for selling ERC20 fractions.
 
+### **depositFractionalizeSell**
+Execute all three the above operations in single call.
+
 ### **buy**
 Buy ERC20 fractions.
 
@@ -31,7 +34,7 @@ The Token structure contains all necesssary properties for fractionalization and
         bool fractionalized;
         ERC20 fractionsContract;
         uint weiPricePerToken;
-        bool isSoldOut;
+        bool soldOut;
     }
 ```
 
@@ -41,23 +44,18 @@ The Token structure contains all necesssary properties for fractionalization and
 ```fractionalized``` - used to check if token was fractionalized.  
 ```fractionsContract``` - Contract that will be initialized during fractionalization and will hold supply of ERC20 tokens (NFT fractions) for selling.  
 ```weiPricePerToken``` - price per ERC20 token in wei.  
-```isSoldOut``` - used to check if this token fractions were already sold.
+```soldOut``` - used to check if this token fractions were already sold.
 
 <br/>
 <br/>
 
 ```
-struct TokenEntry {
-    address owner;
-    uint uniqueTokenId;
-}
-
-mapping(uint => TokenEntry) tokensForSale;
+mapping(uint => address) tokensForSale;
 ```
 
-```TokenEntry``` is like cursor that is used to find the actual token in the ```usersTokens``` mapping.
-When ```sell``` is executed for given token, if all conditions are fine, ```TokenEntry``` for it will be created in ```tokensForSale```.  
-During ```buy``` execution if all tokens are sold out, ```isSoldOut``` property will be set to try and entry will be removed from ```tokensForSale```. 
+```tokensForSale``` is like cursor that is used to find the actual token in the ```usersTokens``` mapping.
+When ```sell``` is executed for given token, if all conditions are met, entry for it will be created in ```tokensForSale```.  
+During ```buy``` execution if all tokens are sold out, ```soldOut``` property will be set to ```true``` and entry will be removed from ```tokensForSale```. 
 
 ## SimpleNFT
 
