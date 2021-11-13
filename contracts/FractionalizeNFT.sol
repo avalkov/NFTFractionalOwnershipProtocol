@@ -20,17 +20,13 @@ contract FractionalizeNFT is ERC721Holder {
         bool fractionalized;
         ERC20 fractionsContract;
         uint weiPricePerToken;
-        bool isSoldOut;
-    }
-
-    struct TokenEntry {
-        address owner;
-        uint uniqueTokenId;
+        bool soldOut;
     }
 
     mapping(address => mapping(uint => Token)) usersTokens;
-    mapping(uint => TokenEntry) tokensForSale;
+    mapping(uint => address) tokensForSale;
     mapping(uint => bool) depositedTokens;
+    mapping(address => uint) usersBalances;
 
     event TokenDeposited(address _from, uint _tokenId, uint _uniqueTokenId);
 
@@ -40,24 +36,55 @@ contract FractionalizeNFT is ERC721Holder {
     }
 
     function deposit(address _tokenContract, uint _tokenId) external {
-        IERC721(_tokenContract).safeTransferFrom(msg.sender, address(this), _tokenId, abi.encodePacked(_tokenContract));
+        IERC721(_tokenContract).safeTransferFrom(msg.sender, address(this), _tokenId, abi.encodePacked(msg.sender));
     }
 
     function fractionalize(uint _uniqueTokenId, uint _supply, string calldata _name, string calldata _symbol) external onlyIfSenderToken(_uniqueTokenId) {
-        require(usersTokens[msg.sender][_uniqueTokenId].fractionalized == false, "Token is already fractionalized.");
-        usersTokens[msg.sender][_uniqueTokenId].fractionsContract = new ERC20PresetFixedSupply(_name, _symbol, _supply, address(this));
+        Token storage token = usersTokens[msg.sender][_uniqueTokenId];
+        
+        require(token.fractionalized == false, "Token is already fractionalized.");
+        
+        token.fractionsContract = new ERC20PresetFixedSupply(_name, _symbol, _supply, address(this));
+        token.fractionalized = true;
     }
 
     function sell(uint _uniqueTokenId, uint _weiPrice) external onlyIfSenderToken(_uniqueTokenId) {
-        // Check if token is not already for sale
-        // Check if its fractionized,
-        // Check if its not already soldOut
+        Token storage token = usersTokens[msg.sender][_uniqueTokenId];
+
+        require(token.fractionalized == true, "Token is not fractionalized.");
+        require(tokensForSale[_uniqueTokenId] == address(0), "Token is already for sale.");
+        require(token.soldOut == false, "Token is already sold out.");
+
+        token.weiPricePerToken = _weiPrice;
+        tokensForSale[_uniqueTokenId] = msg.sender;
     }
 
-    function buy(uint _uniqueTokenId, uint _amount) external {
-        // Check if token is NOT initialized for this user
-        // Check if token exists in tokensForSale
-        // when there is no more supply left, just delete it from tokensForSale and set flag isSoldOut
+    function depositFractionalizeSell(address _tokenContract, uint _tokenId, uint _supply, string calldata _name, 
+        string calldata _symbol, uint _weiPrice) external {
+
+    }
+
+    function buy(uint _uniqueTokenId, uint _amount) external payable {
+        require(usersTokens[msg.sender][_uniqueTokenId].initialized == false, "You cannot buy your own fractions.");
+
+        address sellerAddress = tokensForSale[_uniqueTokenId];
+        require(sellerAddress != address(0), "Token is not for sale.");
+
+        Token storage token = usersTokens[sellerAddress][_uniqueTokenId];
+        require(msg.value >= token.weiPricePerToken * _amount, "Insufficient wei.");
+        
+        usersBalances[sellerAddress] += msg.value;
+
+        token.fractionsContract.transfer(msg.sender, _amount);
+
+        if (token.fractionsContract.balanceOf(address(this)) == 0) {
+            token.soldOut = true;
+            delete tokensForSale[_uniqueTokenId];
+        }
+    }
+
+    function getUniqueTokenId(address _tokenContract, uint _tokenId) public pure returns(uint) {
+        return uint(keccak256(abi.encodePacked(_tokenContract, _tokenId)));
     }
 
     function onERC721Received(address _transferInitiator, address _from, uint256 _tokenId, bytes memory data) public virtual override returns (bytes4) {
@@ -76,7 +103,6 @@ contract FractionalizeNFT is ERC721Holder {
         token.tokenId = _tokenId;
         token.fractionalized = false;
         usersTokens[userAddress][uniqueTokenId] = token;
-
         emit TokenDeposited(_from, _tokenId, uniqueTokenId);
 
         return this.onERC721Received.selector;
@@ -86,9 +112,5 @@ contract FractionalizeNFT is ERC721Holder {
         assembly {
             addr := mload(add(_bys, 20))
         }
-    }
-
-    function getUniqueTokenId(address _tokenContract, uint _tokenId) private pure returns(uint) {
-        return uint(keccak256(abi.encodePacked(_tokenContract, _tokenId)));
     }
 }
