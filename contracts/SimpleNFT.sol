@@ -3,8 +3,7 @@
 pragma solidity ^0.8.0;
 pragma abicoder v2;
 
-import "./Ownable.sol";
-
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
@@ -22,6 +21,10 @@ contract SimpleNFT is ERC721, Ownable {
 
     }
     
+    function setTokenURI(uint256 tokenId, string memory _tokenURI) external onlyOwner() {
+        _setTokenURI(tokenId, _tokenURI);
+    }
+
     function setBaseURI(string memory baseURI_) external onlyOwner() {
         _baseURIextended = baseURI_;
     }

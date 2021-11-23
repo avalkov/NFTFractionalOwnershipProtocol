@@ -41,15 +41,19 @@ describe("SimpleNFT", function () {
 
     it("Should fail to set base uri for non-owners", async function() {
         const [_, addr1] = await ethers.getSigners();
-        await expect(simpleNFT.connect(addr1).setBaseURI("http://somenft.com/")).to.be.revertedWith("Not invoked by the owner");
+        await expect(simpleNFT.connect(addr1).setBaseURI("http://somenft.com/")).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("Should fail to mint for non-owners", async function() {
         const [_, addr1] = await ethers.getSigners();
-        await expect(simpleNFT.connect(addr1).mint(addr1.address, 5, "")).to.be.revertedWith("Not invoked by the owner")
+        await expect(simpleNFT.connect(addr1).mint(addr1.address, 5, "")).to.be.revertedWith("Ownable: caller is not the owner")
     });
 
     it("Should fail to return token uri for non existent token id", async function() {
         await expect(simpleNFT.tokenURI(6)).to.be.revertedWith("ERC721Metadata: URI query for nonexistent token");
+    });
+
+    it("Should fail to set token uri for non existing token id", async function() {
+        await expect(simpleNFT.setTokenURI(21, "http://somenft.com/")).to.be.revertedWith("ERC721Metadata: URI set of nonexistent token");
     });
 });
