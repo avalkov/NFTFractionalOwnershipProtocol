@@ -2,6 +2,9 @@
 
 This project demonstrates a basic NFT fractional ownership protocol.
 
+## Tests coverage
+![Tests coverage](coverage.png "Tests coverage")
+
 ## FractionalizeNFT
 
 The contract allows you to deposit, fractionalize NFT and then sell/buy the fractions.
