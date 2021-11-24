@@ -172,6 +172,10 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         }
     }
 
+    function getUserProfit() external view returns(uint) {
+        return usersBalances[msg.sender];
+    }
+
     function withdrawSalesProfit() external {
         // TODO: Maybe more precise implementation need to be implemented, to estimate fees and not transfer if the fees will be too high
         uint userBalance = usersBalances[msg.sender];
@@ -274,10 +278,6 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         }
 
         return boughtFractions;
-    }
-
-    function getUserProfit() external view returns(uint) {
-        return usersBalances[msg.sender];
     }
 
     function getUniqueTokenId(address _tokenContract, uint _tokenId) public pure returns(uint) {
