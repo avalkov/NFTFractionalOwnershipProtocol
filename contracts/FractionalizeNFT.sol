@@ -384,6 +384,8 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
                             delete userBoughtFractions[buyer];
                             break;
                         }
+
+                        break;
                     }
                     
                     userBoughtFractions[buyer][j] = userBoughtFractions[buyer][x];
