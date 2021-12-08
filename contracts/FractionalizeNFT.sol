@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 import "hardhat/console.sol";
 
@@ -17,11 +18,13 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
     uint private MIN_WITHDRAW_AMOUNT_WEI = 50000000000000000;
 
     struct TokenUI {
+        address owner;
         address tokenContract;
         uint tokenId;
         uint fractionsTotalSupply;
         uint availableFractions;
         uint weiPricePerToken;
+        address fractionsContract;
         uint uniqueTokenId;
         bool forSale;
         bool soldOut;
@@ -47,7 +50,7 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         address tokenContract;
         uint tokenId;
         bool fractionalized;
-        ERC20 fractionsContract;
+        ERC20Burnable fractionsContract;
         uint weiPricePerToken;
         bool forSale;
         bool soldOut;
@@ -130,6 +133,11 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         tokensForSaleCount++;
     }
 
+    function fractionalizeSell(uint _uniqueTokenId, uint _supply, string calldata _name, string calldata _symbol, uint _weiPrice) external {
+            _fractionalize(_uniqueTokenId, _supply, _name, _symbol);
+            _sell(_uniqueTokenId, _weiPrice);
+    }
+
     function depositFractionalizeSell(address _tokenContract, uint _tokenId, uint _supply, string calldata _name, 
         string calldata _symbol, uint _weiPrice) external {
             _deposit(_tokenContract, _tokenId);
@@ -177,7 +185,6 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
     }
 
     function withdrawSalesProfit() external {
-        // TODO: Maybe more precise implementation need to be implemented, to estimate fees and not transfer if the fees will be too high
         uint userBalance = usersBalances[msg.sender];
         require(userBalance >= MIN_WITHDRAW_AMOUNT_WEI, "You have less than minimal required funds to withdraw.");
         
@@ -208,10 +215,10 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         MIN_WITHDRAW_AMOUNT_WEI = _amount;
     }
 
-    // TODO: Maybe it worth creating function that unifies some of the functions below, to optimize for gas fees
-
-    function getAllNFTsForSale() external view returns(TokenUI[] memory){
-        // TODO: Maybe some kind of pagination or filtering is needed in case we have a lot of NFTs for listed
+    function getAllNFTsForSale() external view returns(TokenUI[] memory) {
+        if (tokensForSaleCount == 0) {
+            return new TokenUI[](0);
+        }
 
         TokenUI[] memory tokens = new TokenUI[](tokensForSaleCount);
 
@@ -221,8 +228,9 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
 
         while (usersTokensIterator.owner != address(0)) {
             Token storage token = usersTokens[usersTokensIterator.owner][usersTokensIterator.uniqueTokenId];
-            tokens[i] = tokenToTokenUI(token, usersTokensIterator.uniqueTokenId);
+            tokens[i] = tokenToTokenUI(token, usersTokensIterator.uniqueTokenId, usersTokensIterator.owner);
             usersTokensIterator = token.prev;
+            i++;
         }
 
         return tokens;
@@ -240,7 +248,7 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
             
             if (usersTokensIterator.owner == msg.sender) {
                 userNFTsUI[i].fractionalized = token.fractionalized;
-                userNFTsUI[i].token = tokenToTokenUI(token, usersTokensIterator.uniqueTokenId);
+                userNFTsUI[i].token = tokenToTokenUI(token, usersTokensIterator.uniqueTokenId, usersTokensIterator.owner);
                 i++;
             }
 
@@ -274,7 +282,7 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
                 boughtFractions[i].amount = token.fractionsContract.balanceOf(msg.sender);
             }
 
-            boughtFractions[i].token = tokenToTokenUI(token, uniqueTokenId);
+            boughtFractions[i].token = tokenToTokenUI(token, uniqueTokenId, fractionsLinks[i].owner);
         }
 
         return boughtFractions;
@@ -319,8 +327,7 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
 
         deleteBuyersUserBoughtFractions(token.buyers, _owner, _uniqueTokenId);
 
-        // TODO: Test do we need to burn and how to properly destroy the ERC20 smart contract
-        // token.fractionsContract.burnFrom(msg.sender, token.fractionsContract.totalSupply());
+        token.fractionsContract.burnFrom(msg.sender, token.fractionsContract.totalSupply());
 
         delete uniqueTokenIdToOwner[_uniqueTokenId];
         delete usersTokens[_owner][_uniqueTokenId];
@@ -396,15 +403,17 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         }
     }
 
-    function tokenToTokenUI(Token storage _token, uint _uniqueTokenId) private view returns(TokenUI memory) {
+    function tokenToTokenUI(Token storage _token, uint _uniqueTokenId, address _owner) private view returns(TokenUI memory) {
         TokenUI memory tokenUI;
 
         tokenUI.tokenContract = _token.tokenContract;
+        tokenUI.owner = _owner;
         tokenUI.tokenId = _token.tokenId;
 
         if (_token.fractionalized == true) {
             tokenUI.fractionsTotalSupply = _token.fractionsContract.totalSupply();
             tokenUI.availableFractions = _token.fractionsContract.balanceOf(address(this));
+            tokenUI.fractionsContract = address(_token.fractionsContract);
         } else {
             tokenUI.fractionsTotalSupply = 0;
             tokenUI.availableFractions = 0;

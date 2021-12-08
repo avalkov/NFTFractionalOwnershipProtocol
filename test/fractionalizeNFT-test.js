@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const helpers = require("./helpers");
+const ERC20 = require("../artifacts/@openzeppelin/contracts/token/ERC20/ERC20.sol/ERC20.json")
 
 
 describe("FractionalizeNFT", function() {
@@ -24,6 +25,12 @@ describe("FractionalizeNFT", function() {
         [deployer] = await ethers.getSigners();
     });
 
+    async function approveForUserBoughtToken(idx, client) {
+        const userBoughtFractions = await fractionalizeNFT.connect(client).getUserBoughtFractions();
+        const fractionsContract = await ethers.getContractAt(ERC20.abi, userBoughtFractions[idx].token.fractionsContract, client);
+        await fractionsContract.connect(client).increaseAllowance(fractionalizeNFT.address, userBoughtFractions[idx].token.fractionsTotalSupply);
+    }
+
     it("Should buy all ERC20 tokens from first fractionalized NFT and buy it back", async function() {
         const tokenId = 1111;
         const totalSupply = 100;
@@ -33,7 +40,7 @@ describe("FractionalizeNFT", function() {
 
         const [_, __, ___, ____, client4, client5] = await ethers.getSigners();
 
-        await simpleNFT.mint(client4.address, tokenId, "image.jpeg");
+        await simpleNFT.mintWithID(client4.address, tokenId, "image.jpeg");
         await simpleNFT.connect(client4).setApprovalForAll(fractionalizeNFT.address, true);
 
         await fractionalizeNFT.connect(client4).depositFractionalizeSell(simpleNFT.address, tokenId, totalSupply, 
@@ -45,6 +52,8 @@ describe("FractionalizeNFT", function() {
             value: ethers.utils.parseEther((ethPricePerToken * availableSupply).toString())
         });
 
+        await approveForUserBoughtToken(0, client5);
+
         await fractionalizeNFT.connect(client5).buyBackNFT(uniqueTokenId);
         expect(await simpleNFT.ownerOf(tokenId)).to.be.equal(client5.address);
 
@@ -54,7 +63,7 @@ describe("FractionalizeNFT", function() {
 
     it("Should deposit NFT", async function() {
         const tokenId = 1;
-        await simpleNFT.mint(deployer.address, tokenId, "image.jpeg");
+        await simpleNFT.mintWithID(deployer.address, tokenId, "image.jpeg");
 
         await fractionalizeNFT.deposit(simpleNFT.address, tokenId);
 
@@ -222,11 +231,11 @@ describe("FractionalizeNFT", function() {
         const thirdTokenTotalSupply = 66, thirdTokenAvailableSupply = 66;
         const weiPricePerToken = ethers.utils.parseEther("0.01");
 
-        await simpleNFT.mint(deployer.address, secondTokenId, "image.jpeg");
+        await simpleNFT.mintWithID(deployer.address, secondTokenId, "image.jpeg");
         await fractionalizeNFT.depositFractionalizeSell(simpleNFT.address, secondTokenId, secondTokenTotalSupply, 
             "Test Token 2", "TT2", weiPricePerToken);
 
-        await simpleNFT.mint(deployer.address, thirdTokenId, "image.jpeg");
+        await simpleNFT.mintWithID(deployer.address, thirdTokenId, "image.jpeg");
         await fractionalizeNFT.depositFractionalizeSell(simpleNFT.address, thirdTokenId, thirdTokenTotalSupply, 
             "Test Token 3", "TT3", weiPricePerToken);
 
@@ -425,6 +434,8 @@ describe("FractionalizeNFT", function() {
         const thirdUniqueTokenId = await fractionalizeNFT.getUniqueTokenId(simpleNFT.address, thirdTokenId);
         
         const [_, __, ___, client3] = await ethers.getSigners();
+        
+        await approveForUserBoughtToken(0, client3);
 
         await fractionalizeNFT.connect(client3).buyBackNFT(secondUniqueTokenId);
         expect(await simpleNFT.ownerOf(secondTokenId)).to.be.equal(client3.address);
@@ -454,6 +465,8 @@ describe("FractionalizeNFT", function() {
         
         const [_, __, ___, client3] = await ethers.getSigners();
 
+        await approveForUserBoughtToken(0, client3);
+        
         await fractionalizeNFT.connect(client3).buyBackNFT(thirdUniqueTokenId);
         expect(await simpleNFT.ownerOf(thirdTokenId)).to.be.equal(client3.address);
     });
@@ -568,11 +581,11 @@ describe("FractionalizeNFT", function() {
         const [_, client1, client2] = await ethers.getSigners();
 
         await simpleNFT.connect(client1).setApprovalForAll(fractionalizeNFT.address, true);
-        await simpleNFT.mint(client1.address, firstClientTokenId, "image.jpeg");
+        await simpleNFT.mintWithID(client1.address, firstClientTokenId, "image.jpeg");
         await fractionalizeNFT.connect(client1).deposit(simpleNFT.address, firstClientTokenId);
 
         await simpleNFT.connect(client2).setApprovalForAll(fractionalizeNFT.address, true);
-        await simpleNFT.mint(client2.address, secondClientTokenId, "image.jpeg");
+        await simpleNFT.mintWithID(client2.address, secondClientTokenId, "image.jpeg");
         await fractionalizeNFT.connect(client2).deposit(simpleNFT.address, secondClientTokenId);
 
         const deployerNFTs = await fractionalizeNFT.getUserNFTs();
@@ -626,4 +639,37 @@ describe("FractionalizeNFT", function() {
             }
         ]);
     });
+
+    it("Should deposit, then fractionalizeSell", async function() {
+        const tokenId = 101, totalSupply = 90101, weiPricePerToken = ethers.utils.parseEther('0.12');;
+        
+        const clients = await ethers.getSigners();
+        const client7 = clients[6]
+        
+        await simpleNFT.mintWithID(client7.address, tokenId, "image.jpeg");
+        await simpleNFT.connect(client7).setApprovalForAll(fractionalizeNFT.address, true);
+
+        await fractionalizeNFT.connect(client7).deposit(simpleNFT.address, tokenId);
+
+        const uniqueTokenId = await fractionalizeNFT.getUniqueTokenId(simpleNFT.address, tokenId);
+
+        await fractionalizeNFT.connect(client7).fractionalizeSell(uniqueTokenId, totalSupply, "Test Token 3", "TT3", weiPricePerToken)
+
+        const client7NFTs = await fractionalizeNFT.connect(client7).getUserNFTs();
+        helpers.expectArraysEqual(client7NFTs, [
+            {
+                "fractionalized": true,
+                "token": {
+                    "tokenContract": simpleNFT.address,
+                    "tokenId": tokenId,
+                    "fractionsTotalSupply": totalSupply,
+                    "availableFractions": totalSupply,
+                    "weiPricePerToken": weiPricePerToken,
+                    "uniqueTokenId": uniqueTokenId,
+                    "forSale": true,
+                    "soldOut": false,
+                }
+            }
+        ]);
+    })
 });
