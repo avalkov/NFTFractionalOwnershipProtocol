@@ -641,7 +641,7 @@ describe("FractionalizeNFT", function() {
     });
 
     it("Should deposit, then fractionalizeSell", async function() {
-        const tokenId = 101, totalSupply = 90101, weiPricePerToken = ethers.utils.parseEther('0.12');;
+        const tokenId = 101, totalSupply = 90101, weiPricePerToken = ethers.utils.parseEther('0.12');
         
         const clients = await ethers.getSigners();
         const client7 = clients[6]
@@ -671,5 +671,20 @@ describe("FractionalizeNFT", function() {
                 }
             }
         ]);
+    })
+
+    it("Should return only NFTs for sale when there are deopisted not for sale", async function() {
+        const tokenId = 102;
+        
+        const clients = await ethers.getSigners();
+        const client7 = clients[6]
+        
+        await simpleNFT.mintWithID(client7.address, tokenId, "image.jpeg");
+        await simpleNFT.connect(client7).setApprovalForAll(fractionalizeNFT.address, true);
+
+        await fractionalizeNFT.connect(client7).deposit(simpleNFT.address, tokenId);
+
+        const allNFTsForSale = await fractionalizeNFT.getAllNFTsForSale();
+        console.log(allNFTsForSale)
     })
 });
