@@ -1,5 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 require("solidity-coverage");
+require("@nomiclabs/hardhat-etherscan");
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -41,5 +42,8 @@ module.exports = {
       url: "https://ropsten.infura.io/v3/40c2813049e44ec79cb4d7e0d18de173",
       accounts: ['1e48761e1458c2000325477adb480f2ea0977199485706ecb2f00727fc2fa322']
     }
+  },
+  etherscan: {
+    apiKey: "CHIRAADNUI814XIT9ST36R63UFNBNDKBDY"
   }
 };
