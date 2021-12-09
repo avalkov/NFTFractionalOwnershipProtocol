@@ -228,9 +228,13 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
 
         while (usersTokensIterator.owner != address(0)) {
             Token storage token = usersTokens[usersTokensIterator.owner][usersTokensIterator.uniqueTokenId];
-            tokens[i] = tokenToTokenUI(token, usersTokensIterator.uniqueTokenId, usersTokensIterator.owner);
+
+            if (token.forSale == true) {
+                tokens[i] = tokenToTokenUI(token, usersTokensIterator.uniqueTokenId, usersTokensIterator.owner);
+                i++;
+            }
+
             usersTokensIterator = token.prev;
-            i++;
         }
 
         return tokens;
