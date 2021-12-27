@@ -685,6 +685,5 @@ describe("FractionalizeNFT", function() {
         await fractionalizeNFT.connect(client7).deposit(simpleNFT.address, tokenId);
 
         const allNFTsForSale = await fractionalizeNFT.getAllNFTsForSale();
-        console.log(allNFTsForSale)
     })
 });

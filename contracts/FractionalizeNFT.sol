@@ -199,12 +199,15 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         
         uint totalSupply = token.fractionsContract.totalSupply();
         require(token.fractionsContract.balanceOf(msg.sender) == totalSupply, "You dont own all fractions.");
-
-        IERC721(token.tokenContract).transferFrom(address(this), msg.sender, token.tokenId);
+        
+        address tokenContract = token.tokenContract;
+        uint tokenId = token.tokenId;
 
         deleteUserToken(owner, _uniqueTokenId);
 
         userNFTsCount[owner]--;
+
+        IERC721(tokenContract).transferFrom(address(this), msg.sender, tokenId);
     }
 
     function getMinWithdrawWeiAmount() external view returns(uint) {
