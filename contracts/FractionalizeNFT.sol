@@ -188,9 +188,9 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         uint userBalance = usersBalances[msg.sender];
         require(userBalance >= MIN_WITHDRAW_AMOUNT_WEI, "You have less than minimal required funds to withdraw.");
         
-        payable(msg.sender).transfer(userBalance);
-
         delete usersBalances[msg.sender];
+
+        payable(msg.sender).transfer(userBalance);
     }
 
     function buyBackNFT(uint _uniqueTokenId) external onlyIfTokenFound(_uniqueTokenId) {
