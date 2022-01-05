@@ -79,8 +79,6 @@ The Token structure contains all necesssary properties for fractionalization and
         bool forSale;
         bool soldOut;
 
-        address[] buyers;
-
         TokenLink prev;
         TokenLink next;
     }
@@ -94,7 +92,6 @@ The Token structure contains all necesssary properties for fractionalization and
 ```weiPricePerToken``` - price per ERC20 token in wei.  
 ```forSale``` - used to check if token is currently for sale.  
 ```soldOut``` - used to check if this token fractions were already sold.  
-```buyers``` - all users that bought fractions from this NFT.  
 ```prev``` - points to previous token in the list, used for iteration of all NFTs.  
 ```next``` -  points to next token in the list, used for iteration of all NFTs.
 
@@ -105,8 +102,6 @@ When NFT is deposited ```usersTokens``` entry is created, after that when its fr
 To allow iteration over ```usersTokens``` the mapping itself is also doubly linked list. ```usersTokensTail``` is pointing to the last element of the list and all new elements are appended after it.
 
 During ```buy``` execution if all tokens are sold out, ```soldOut``` property will be set to ```true```. The entry will be deleted when the NFT is bought back by someone who holds all the fractions.
-
-When given user buys fractions, entry in ```userBoughtFractions``` is created, where key is the user address and value is array of references to the NFTs that were bought. Just so we can easily access which user bought what fractions. When element is deleted from the references array, we try to find the last non-empty element in the array and put it on the deleted position, to keep the array in form without empty slots in between the elements. Incase last reference is deleted from the array, then the entire entry is deleted from ```userBoughtFractions``` mapping.
 
 
 These are structures that are used only to return data to the UI.
