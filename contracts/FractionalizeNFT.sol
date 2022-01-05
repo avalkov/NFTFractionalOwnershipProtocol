@@ -53,8 +53,6 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         bool forSale;
         bool soldOut;
 
-        address[] buyers;
-
         TokenLink prev;
         TokenLink next;
     }
