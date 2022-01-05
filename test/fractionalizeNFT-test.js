@@ -381,19 +381,6 @@ describe("FractionalizeNFT", function() {
         const client3BoughtFractions = await fractionalizeNFT.connect(client3).getUserBoughtFractions();
         helpers.expectArraysEqual(client3BoughtFractions, [
             {
-                "amount": secondTokenAvailableSupply,
-                "token": {
-                    "tokenContract": simpleNFT.address,
-                    "tokenId": secondTokenId,
-                    "fractionsTotalSupply": secondTokenTotalSupply,
-                    "availableFractions": 0,
-                    "weiPricePerToken": weiPricePerToken,
-                    "uniqueTokenId": secondUniqueTokenId,
-                    "forSale": false,
-                    "soldOut": true,
-                }
-            },
-            {
                 "amount": thirdTokenAvailableSupply,
                 "token": {
                     "tokenContract": simpleNFT.address,
@@ -402,6 +389,19 @@ describe("FractionalizeNFT", function() {
                     "availableFractions": 0,
                     "weiPricePerToken": weiPricePerToken,
                     "uniqueTokenId": thirdUniqueTokenId,
+                    "forSale": false,
+                    "soldOut": true,
+                }
+            },
+            {
+                "amount": secondTokenAvailableSupply,
+                "token": {
+                    "tokenContract": simpleNFT.address,
+                    "tokenId": secondTokenId,
+                    "fractionsTotalSupply": secondTokenTotalSupply,
+                    "availableFractions": 0,
+                    "weiPricePerToken": weiPricePerToken,
+                    "uniqueTokenId": secondUniqueTokenId,
                     "forSale": false,
                     "soldOut": true,
                 }
@@ -435,7 +435,7 @@ describe("FractionalizeNFT", function() {
         
         const [_, __, ___, client3] = await ethers.getSigners();
         
-        await approveForUserBoughtToken(0, client3);
+        await approveForUserBoughtToken(1, client3);
 
         await fractionalizeNFT.connect(client3).buyBackNFT(secondUniqueTokenId);
         expect(await simpleNFT.ownerOf(secondTokenId)).to.be.equal(client3.address);
@@ -640,6 +640,24 @@ describe("FractionalizeNFT", function() {
         ]);
     });
 
+    it("Should return only NFTs for sale when there are deopisted not for sale", async function() {
+        const tokenId = 102;
+        
+        const clients = await ethers.getSigners();
+        const client7 = clients[8]
+        
+        await simpleNFT.mintWithID(client7.address, tokenId, "image.jpeg");
+        await simpleNFT.connect(client7).setApprovalForAll(fractionalizeNFT.address, true);
+
+        const allNFTsForSaleBeforeDeposit = await fractionalizeNFT.getAllNFTsForSale();
+
+        await fractionalizeNFT.connect(client7).deposit(simpleNFT.address, tokenId);
+        
+        const allNFTsForSaleAfterDeposit = await fractionalizeNFT.getAllNFTsForSale();
+
+        helpers.expectArraysEqual(allNFTsForSaleBeforeDeposit, allNFTsForSaleAfterDeposit);
+    })
+
     it("Should deposit, then fractionalizeSell", async function() {
         const tokenId = 101, totalSupply = 90101, weiPricePerToken = ethers.utils.parseEther('0.12');
         
@@ -673,17 +691,38 @@ describe("FractionalizeNFT", function() {
         ]);
     })
 
-    it("Should return only NFTs for sale when there are deopisted not for sale", async function() {
-        const tokenId = 102;
-        
+    it("Should return empty array when no user bought fractions", async function () {
         const clients = await ethers.getSigners();
-        const client7 = clients[6]
-        
-        await simpleNFT.mintWithID(client7.address, tokenId, "image.jpeg");
-        await simpleNFT.connect(client7).setApprovalForAll(fractionalizeNFT.address, true);
+        const client11 = clients[10]
 
-        await fractionalizeNFT.connect(client7).deposit(simpleNFT.address, tokenId);
+        const userFractions = await fractionalizeNFT.connect(client11).getUserBoughtFractions();
+        expect(userFractions.length).to.be.equal(0);
+    })
 
-        const allNFTsForSale = await fractionalizeNFT.getAllNFTsForSale();
+    it("Should return correct user bought fractions", async function () {
+        const tokenId = 1;
+        const uniqueTokenId = await fractionalizeNFT.getUniqueTokenId(simpleNFT.address, tokenId);
+        const ethPricePerToken = 0.01;
+        const weiPricePerToken = ethers.utils.parseEther(ethPricePerToken.toString());
+        const currentBoughtAmount = 22, totalSupply= 100, supplyForSale = 77;
+
+        const clients = await ethers.getSigners();
+        const client2 = clients[1];
+        const userFractions = await fractionalizeNFT.connect(client2).getUserBoughtFractions();
+        helpers.expectArraysEqual(userFractions, [
+            {
+                "amount": currentBoughtAmount,
+                "token": {
+                    "tokenContract": simpleNFT.address,
+                    "tokenId": tokenId,
+                    "fractionsTotalSupply": totalSupply,
+                    "availableFractions": supplyForSale,
+                    "weiPricePerToken": weiPricePerToken,
+                    "uniqueTokenId": uniqueTokenId,
+                    "forSale": true,
+                    "soldOut": false,
+                }
+            }
+        ]);
     })
 });

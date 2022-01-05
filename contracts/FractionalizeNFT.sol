@@ -10,8 +10,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
-import "hardhat/console.sol";
-
 
 contract FractionalizeNFT is ERC721Holder, Ownable {
 
@@ -64,7 +62,6 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
     mapping(address => mapping(uint => Token)) private usersTokens;
     mapping(uint => address) private uniqueTokenIdToOwner;
     mapping(address => uint) private usersBalances;
-    mapping(address => TokenLink[]) private userBoughtFractions;
     mapping(address => uint) private userNFTsCount;
     uint private tokensForSaleCount;
     
@@ -156,21 +153,6 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
 
         usersBalances[sellerAddress] += msg.value;
         token.fractionsContract.transfer(msg.sender, _amount);
-
-        bool isAlreadyBuyer = false;
-
-        for (uint i = 0; i < token.buyers.length; i++) {
-            if (token.buyers[i] == msg.sender) {
-                isAlreadyBuyer = true;
-                break;
-            }
-        }
-
-        if (isAlreadyBuyer == false) {
-            token.buyers.push(msg.sender);
-
-            storeUserBoughtFraction(sellerAddress, _uniqueTokenId);
-        }
  
         if (token.fractionsContract.balanceOf(address(this)) == 0) {
             token.soldOut = true;
@@ -266,31 +248,46 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
     }
 
     function getUserBoughtFractions() external view returns(BoughtFractionUI[] memory) {
-        TokenLink[] storage fractionsLinks = userBoughtFractions[msg.sender];
+        TokenLink memory usersTokensIterator = usersTokensTail;
+        
+        uint count = 0;
 
-        uint len = fractionsLinks.length;
+        while (usersTokensIterator.owner != address(0)) {
+            Token storage token = usersTokens[usersTokensIterator.owner][usersTokensIterator.uniqueTokenId];
 
-        if (len == 0) {
+            if (address(token.fractionsContract) != address(0) && token.fractionsContract.balanceOf(msg.sender) > 0) {
+                count++;
+            }
+            
+            usersTokensIterator = token.prev;
+        }
+
+        if (count == 0) {
             return new BoughtFractionUI[](0);
         }
 
-        while (fractionsLinks[len - 1].owner == address(0)) {
-            len--;
-        }
+        BoughtFractionUI[] memory boughtFractions = new BoughtFractionUI[](count);
 
-        BoughtFractionUI[] memory boughtFractions = new BoughtFractionUI[](len);
+        uint i = 0;
 
-        for (uint i = 0; i < len; i++) {
-            uint uniqueTokenId = fractionsLinks[i].uniqueTokenId;
+        usersTokensIterator = usersTokensTail;
 
-            Token storage token = usersTokens[fractionsLinks[i].owner][uniqueTokenId];
+        while (usersTokensIterator.owner != address(0)) {
+            Token storage token = usersTokens[usersTokensIterator.owner][usersTokensIterator.uniqueTokenId];
             
-            if (token.fractionalized == true) {
-                boughtFractions[i].amount = token.fractionsContract.balanceOf(msg.sender);
-            }
+            if (address(token.fractionsContract) != address(0)) {
+                uint balance = token.fractionsContract.balanceOf(msg.sender);
 
-            boughtFractions[i].token = tokenToTokenUI(token, uniqueTokenId, fractionsLinks[i].owner);
+                if (balance > 0 && i < count) {
+                    boughtFractions[i].amount = balance;
+                    boughtFractions[i].token = tokenToTokenUI(token, usersTokensIterator.uniqueTokenId, usersTokensIterator.owner);
+                    i++;
+                }
+            }
+            
+            usersTokensIterator = token.prev;
         }
+
 
         return boughtFractions;
     }
@@ -332,82 +329,10 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
             usersTokensTail = token.prev;
         }
 
-        deleteBuyersUserBoughtFractions(token.buyers, _owner, _uniqueTokenId);
-
         token.fractionsContract.burnFrom(msg.sender, token.fractionsContract.totalSupply());
 
         delete uniqueTokenIdToOwner[_uniqueTokenId];
         delete usersTokens[_owner][_uniqueTokenId];
-    }
-
-    function storeUserBoughtFraction(address _owner, uint _uniqueTokenId) internal {
-        uint fractionsLength = userBoughtFractions[msg.sender].length;
-
-        if (fractionsLength == 0) {
-            userBoughtFractions[msg.sender].push(TokenLink(_owner, _uniqueTokenId));
-            return;
-        }
-
-        uint i = fractionsLength - 1;
-
-        while (i > 0 && userBoughtFractions[msg.sender][i].owner == address(0)) {
-            i--;
-        }
-
-        i++;
-
-        if (i <= fractionsLength - 1 && userBoughtFractions[msg.sender][i].owner == address(0)) {
-            userBoughtFractions[msg.sender][i] = TokenLink(_owner, _uniqueTokenId);
-            return;
-        }
-
-        userBoughtFractions[msg.sender].push(TokenLink(_owner, _uniqueTokenId));
-    }
-
-    function deleteBuyersUserBoughtFractions(address[] memory _buyers, address _owner, uint _uniqueTokenId) internal {
-        for (uint i = 0; i < _buyers.length; i++) {
-
-            address buyer = _buyers[i];
-
-            uint length = userBoughtFractions[buyer].length;
-
-            for (uint j = 0; j < length; j++) {
-
-                if (userBoughtFractions[buyer][j].owner == _owner && userBoughtFractions[buyer][j].uniqueTokenId == _uniqueTokenId) {
-
-                    delete userBoughtFractions[buyer][j];
-
-                    if (length == 1) {
-                        // The only one entry of the array was deleted
-                        delete userBoughtFractions[buyer];
-                        break;
-                    }
-
-                    // Find last non empty entry
-                    uint x = length - 1;
-
-                    while (x > j && userBoughtFractions[buyer][x].owner == address(0)) {
-                        x--;
-                    }
-
-                    if (x == j) {
-                        // No non-empty entry was found
-                        
-                        if (j == 0) {
-                            // No non-empty entry was found and this is the element at first position in the array
-                            delete userBoughtFractions[buyer];
-                            break;
-                        }
-
-                        break;
-                    }
-                    
-                    userBoughtFractions[buyer][j] = userBoughtFractions[buyer][x];
-                    delete userBoughtFractions[buyer][x];
-                    break;
-                }
-            }
-        }
     }
 
     function tokenToTokenUI(Token storage _token, uint _uniqueTokenId, address _owner) private view returns(TokenUI memory) {
