@@ -291,7 +291,7 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
     }
 
     function getUniqueTokenId(address _tokenContract, uint _tokenId) public pure returns(uint) {
-        return uint(keccak256(abi.encodePacked(_tokenContract, _tokenId)));
+        return uint(keccak256(abi.encodePacked(_tokenContract, " ", _tokenId)));
     }
 
     function storeUserToken(Token memory _token, address _owner, uint _uniqueTokenId) internal {
