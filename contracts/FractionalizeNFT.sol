@@ -13,8 +13,6 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 contract FractionalizeNFT is ERC721Holder, Ownable {
 
-    uint private MIN_WITHDRAW_AMOUNT_WEI = 50000000000000000;
-
     struct TokenUI {
         address owner;
         address tokenContract;
@@ -166,7 +164,6 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
 
     function withdrawSalesProfit() external {
         uint userBalance = usersBalances[msg.sender];
-        require(userBalance >= MIN_WITHDRAW_AMOUNT_WEI, "You have less than minimal required funds to withdraw.");
         
         delete usersBalances[msg.sender];
 
@@ -188,14 +185,6 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         userNFTsCount[owner]--;
 
         IERC721(tokenContract).transferFrom(address(this), msg.sender, tokenId);
-    }
-
-    function getMinWithdrawWeiAmount() external view returns(uint) {
-        return MIN_WITHDRAW_AMOUNT_WEI;
-    }
-
-    function setMinWithdrawWeiAmount(uint _amount) external onlyOwner() {
-        MIN_WITHDRAW_AMOUNT_WEI = _amount;
     }
 
     function getAllNFTsForSale() external view returns(TokenUI[] memory) {

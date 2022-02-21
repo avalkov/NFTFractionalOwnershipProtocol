@@ -511,23 +511,6 @@ describe("FractionalizeNFT", function() {
         expect(newUserBalance).to.be.above(initialUserBalance + parseFloat(expectedUserProfit) - withdrawTransferFee);
     });
 
-    it("Should fail to withdraw user profits if under the minimal required amount", async function() {
-        await expect(fractionalizeNFT.withdrawSalesProfit()).to.be.revertedWith("You have less than minimal required funds to withdraw.");
-    });
-
-    it("Should set withdraw minimal required amount", async function() {
-        const minWithdrawWeiAmount = 919191;
-        await fractionalizeNFT.setMinWithdrawWeiAmount(minWithdrawWeiAmount);
-        expect(await fractionalizeNFT.getMinWithdrawWeiAmount()).to.equal(minWithdrawWeiAmount);
-    });
-
-    it("Shoul fail to set withdraw minimal required amount if not owner", async function() {
-        const minWithdrawWeiAmount = 919191;
-        const [_, __, ___, client3] = await ethers.getSigners();
-        await expect(fractionalizeNFT.connect(client3).setMinWithdrawWeiAmount(minWithdrawWeiAmount))
-            .to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
     it("Same user should buy from same fractions twice", async function() {
         const tokenId = 1;
         const totalSupply = 100;
