@@ -9,9 +9,11 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 
 contract FractionalizeNFT is ERC721Holder, Ownable {
+    using SafeERC20 for ERC20Burnable;
 
     struct TokenUI {
         address owner;
@@ -148,14 +150,15 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
         require(msg.value >= token.weiPricePerToken * _amount, "Insufficient wei.");
 
         usersBalances[sellerAddress] += msg.value;
-        token.fractionsContract.transfer(msg.sender, _amount);
- 
-        if (token.fractionsContract.balanceOf(address(this)) == 0) {
+
+        if (token.fractionsContract.balanceOf(address(this)) - _amount == 0) {
             token.soldOut = true;
             token.forSale = false;
 
             tokensForSaleCount--;
         }
+
+        token.fractionsContract.safeTransfer(msg.sender, _amount);
     }
 
     function getUserProfit() external view returns(uint) {
@@ -184,7 +187,7 @@ contract FractionalizeNFT is ERC721Holder, Ownable {
 
         userNFTsCount[owner]--;
 
-        IERC721(tokenContract).transferFrom(address(this), msg.sender, tokenId);
+        IERC721(tokenContract).safeTransferFrom(address(this), msg.sender, tokenId);
     }
 
     function getAllNFTsForSale() external view returns(TokenUI[] memory) {
